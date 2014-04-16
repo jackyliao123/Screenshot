@@ -13,6 +13,7 @@ void startMessageLoop();
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 void keyPressed(int vk);
 bool registerHotkey();
+void paintWindow();
 
 static HINSTANCE hInstance;
 static HINSTANCE hPrevInstance;

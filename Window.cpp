@@ -71,40 +71,44 @@ void keyPressed(int vk){
 	}
 }
 
+void paintWindow(){
+	if (hbitmap != NULL){
+		PAINTSTRUCT 	ps;
+		HDC 			hdc;
+		BITMAP 			bitmap;
+		HDC 			hdcMem;
+		HGDIOBJ 		oldBitmap;
+
+		hdc = BeginPaint(hwnd, &ps);
+
+		hdcMem = CreateCompatibleDC(hdc);
+		oldBitmap = SelectObject(hdcMem, hbitmap);
+
+		GetObject(hbitmap, sizeof(bitmap), &bitmap);
+		BitBlt(hdc, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
+
+		SelectObject(hdcMem, oldBitmap);
+		DeleteDC(hdcMem);
+		RECT rect;
+		POINT point;
+		GetCursorPos(&point);
+		transparent = true;
+		HWND window = WindowFromPoint(point);
+		GetWindowRect(window, &rect);
+		HBRUSH brush = CreateSolidBrush((COLORREF)0x80FF00FF);
+		FillRect(hdc, &rect, brush);
+		DeleteObject(brush);
+
+		EndPaint(hwnd, &ps);
+	}
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 	switch (msg){
 	case WM_ERASEBKGND:
 		return 1;
 	case WM_PAINT:
-		if (hbitmap != NULL){
-			PAINTSTRUCT 	ps;
-			HDC 			hdc;
-			BITMAP 			bitmap;
-			HDC 			hdcMem;
-			HGDIOBJ 		oldBitmap;
-
-			hdc = BeginPaint(hwnd, &ps);
-
-			hdcMem = CreateCompatibleDC(hdc);
-			oldBitmap = SelectObject(hdcMem, hbitmap);
-
-			GetObject(hbitmap, sizeof(bitmap), &bitmap);
-			BitBlt(hdc, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
-
-			SelectObject(hdcMem, oldBitmap);
-			DeleteDC(hdcMem);
-			RECT rect;
-			POINT point;
-			GetCursorPos(&point);
-			transparent = true;
-			HWND window = WindowFromPoint(point);
-			GetWindowRect(window, &rect);
-			HBRUSH brush = CreateSolidBrush((COLORREF)0x80FF00FF);
-			FillRect(hdc, &rect, brush);
-			DeleteObject(brush);
-
-			EndPaint(hwnd, &ps);
-		}
+		paintWindow();
 		break;
 	case WM_HOTKEY:
 		InvalidateRect(hwnd, 0, true);
