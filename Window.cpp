@@ -19,7 +19,6 @@ HBITMAP takeScreenshot(){
 	DeleteObject(blitDC);
 	DeleteObject(windowDC);
 	return outputBitmap;
-	//DeleteObject(outputBitmap);
 }
 
 bool registerWindowClass(){
@@ -42,7 +41,6 @@ bool registerWindowClass(){
 
 bool createWindow(){
 	HWND desktop = GetDesktopWindow();
-	RECT rect;
 	GetWindowRect(desktop, &rect);
 	hwnd = CreateWindow(CLASS_NAME, "", WS_POPUP, 0, 0, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hInstance, NULL);
 	SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
@@ -63,12 +61,64 @@ void keyPressed(int vk){
 	switch (vk){
 	case VK_ESCAPE:
 		if (hbitmap != NULL){
+			if (selectRect.valid)
+				selectRect.valid = false;
 			DeleteObject(hbitmap);
 			hbitmap = NULL;
+			delete[] capturePixels;
+			DeleteObject(buffer);
 			ShowWindow(hwnd, SW_HIDE);
 		}
 		break;
 	}
+}
+
+void paintToBuffer(){
+	for (unsigned int i = 0; i < bufferWidth * bufferHeight; i++){
+		pixels[i] = capturePixels[i];
+	}
+	for (unsigned int i = 0; i < bufferWidth; i++){
+		for (unsigned int j = 0; j < bufferHeight; j++){
+			pixels[j * bufferWidth + i].r /= 2;
+			pixels[j * bufferWidth + i].g /= 2;
+			pixels[j * bufferWidth + i].b /= 2;
+		}
+	}
+	if (selectRect.valid){
+		for (unsigned int i = selectRect.x; i < selectRect.x + selectRect.width; i++){
+			for (unsigned int j = selectRect.y; j < selectRect.y + selectRect.height; j++){
+				pixels[j * bufferWidth + i] = capturePixels[j * bufferWidth + i];
+			}
+		}
+	}
+}
+
+void createBuffer(){
+	BITMAPINFO bmi;
+	bmi.bmiHeader.biSize = sizeof(BITMAPINFO);
+	bmi.bmiHeader.biWidth = rect.right - rect.left;
+	bmi.bmiHeader.biHeight = rect.top - rect.bottom;
+	bmi.bmiHeader.biPlanes = 1;
+	bmi.bmiHeader.biBitCount = 32;
+	bmi.bmiHeader.biCompression = BI_RGB;
+	bmi.bmiHeader.biSizeImage = 0;
+	bmi.bmiHeader.biXPelsPerMeter = 0;
+	bmi.bmiHeader.biYPelsPerMeter = 0;
+	bmi.bmiHeader.biClrUsed = 0;
+	bmi.bmiHeader.biClrImportant = 0;
+	bmi.bmiColors[0].rgbBlue = 0;
+	bmi.bmiColors[0].rgbGreen = 0;
+	bmi.bmiColors[0].rgbRed = 0;
+	bmi.bmiColors[0].rgbReserved = 0;
+	HDC hdc = GetDC(hwnd);
+	bufferWidth = rect.right - rect.left;
+	bufferHeight = rect.bottom - rect.top;
+	buffer = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, (void**)&pixels, NULL, 0);
+	
+	capturePixels = new pixel[bufferWidth * bufferHeight];
+	GetDIBits(hdc, hbitmap, 0, bufferHeight, capturePixels, &bmi, 0);
+
+	DeleteDC(hdc);
 }
 
 void paintWindow(){
@@ -81,24 +131,17 @@ void paintWindow(){
 
 		hdc = BeginPaint(hwnd, &ps);
 
-		hdcMem = CreateCompatibleDC(hdc);
-		oldBitmap = SelectObject(hdcMem, hbitmap);
+		paintToBuffer();
 
-		GetObject(hbitmap, sizeof(bitmap), &bitmap);
+		hdcMem = CreateCompatibleDC(hdc);
+		oldBitmap = SelectObject(hdcMem, buffer);
+
+		GetObject(buffer, sizeof(bitmap), &bitmap);
 		BitBlt(hdc, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
 
 		SelectObject(hdcMem, oldBitmap);
-		DeleteDC(hdcMem);
-		RECT rect;
-		POINT point;
-		GetCursorPos(&point);
-		transparent = true;
-		HWND window = WindowFromPoint(point);
-		GetWindowRect(window, &rect);
-		HBRUSH brush = CreateSolidBrush((COLORREF)0x80FF00FF);
-		FillRect(hdc, &rect, brush);
-		DeleteObject(brush);
 
+		DeleteDC(hdcMem);
 		EndPaint(hwnd, &ps);
 	}
 }
@@ -114,6 +157,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 		InvalidateRect(hwnd, 0, true);
 		if (hbitmap == NULL){
 			hbitmap = takeScreenshot();
+			createBuffer();
 			ShowWindow(hwnd, SW_SHOW);
 		}
 		break;
@@ -124,7 +168,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 		}
 		else
 			return DefWindowProc(hwnd, msg, wParam, lParam);
+	case WM_LBUTTONDOWN:
+		mouseX = LOWORD(lParam);
+		mouseY = HIWORD(lParam);
+		mousePressX = mouseX;
+		mousePressY = mouseY;
+		selectionType = SELECTION;
+		break;
+	case WM_LBUTTONUP:
+		mouseX = LOWORD(lParam);
+		mouseY = HIWORD(lParam);
+		selectionType = NOTHING;
+		break;
 	case WM_MOUSEMOVE:
+		mouseX = LOWORD(lParam);
+		mouseY = HIWORD(lParam);
+		if (selectionType == SELECTION){
+			selectRect = Selection(mousePressX, mousePressY, mouseX, mouseY);
+		}
 		InvalidateRect(hwnd, 0, false);
 		break;
 	case WM_CLOSE:
