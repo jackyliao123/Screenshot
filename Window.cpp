@@ -134,15 +134,33 @@ void paintToBuffer(){
 }
 
 void drawZoom(){
-	int realx = mouseX > bufferWidth - 129 ? bufferWidth - 129 : mouseX;
-	int realy = mouseY > bufferHeight - 190 ? bufferHeight - 190 : mouseY;
+	int realx = mouseX + 20 > bufferWidth - 129 ? bufferWidth - 129 : mouseX + 20;
+	int realy = mouseY + 20 > bufferHeight - 190 ? bufferHeight - 190 : mouseY + 20;
 
 	fillRect(realx + 4, realy + 5, 130 + realx + 4, 190 + realy + 5, pixel(0xC0808080));
 	fillRect(realx - 1, realy - 1, 130 + realx - 1, 190 + realy - 1, pixel(0xC0000000));
+
+	for (int i = 0; i < 100; i++){
+
+	}
 }
 void drawText(WORD x, WORD y){
-	int height = 5;
-	int width = 100;
+	char *wt = new char[35];
+	char *ht = new char[16];
+	_itoa_s(selectRect.width, wt, 16, 10);
+	_itoa_s(selectRect.height, ht, 16, 10);
+	wt[15] = 0;
+	ht[15] = 0;
+	strcat_s(wt, 35, " x ");
+	strcat_s(wt, 35, ht);
+	HDC dcWnd = GetDC(hwnd);
+	HDC hdc = CreateCompatibleDC(dcWnd);
+	HFONT font = CreateFont(15, 0, 0, 0, FW_LIGHT, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, 0, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Arial");
+	SelectObject(hdc, font);
+	SIZE size;
+	GetTextExtentPoint32(hdc, wt, strlen(wt), &size);
+	int width = size.cx;
+	int height = size.cy;
 	if (y - height - 2 < 0){
 		y = height + 2;
 	}
@@ -150,6 +168,24 @@ void drawText(WORD x, WORD y){
 		x = bufferWidth - width - 6;
 	}
 	fillRect(x, y - height - 2, width + 6 + x, height + 3 + y - height - 2, pixel(0xC0000000));
+	HBITMAP hBmpOld = (HBITMAP)SelectObject(hdc, buffer);
+
+	RECT rect;
+	rect.left = x + 3;
+	rect.top = y - height;
+	rect.bottom = y;
+	rect.right = x + 3 + width;
+	SetBkMode(hdc, TRANSPARENT);
+	
+	SetTextColor(hdc, RGB(255, 255, 255));
+	DrawText(hdc, wt, strlen(wt), &rect, DT_LEFT | DT_WORDBREAK);
+
+	SelectObject(hdc, hBmpOld);
+	ReleaseDC(hwnd, dcWnd);
+	DeleteDC(hdc);
+	DeleteObject(font);
+	delete[] wt;
+	delete[] ht;
 }
 
 void setPixel(int x, int y, pixel color){
