@@ -17,6 +17,8 @@ bool registerHotkey();
 void createBuffer();
 void paintWindow();
 void paintToBuffer();
+void drawZoom();
+void drawText(WORD x, WORD y);
 
 static HINSTANCE hInstance;
 static HINSTANCE hPrevInstance;
@@ -45,7 +47,8 @@ struct pixel {
 	}
 };
 
-void setPixel(int x, int y, pixel color, unsigned char alpha);
+void setPixel(int x, int y, pixel color);
+void drawRect(int x1, int y1, int x2, int y2, pixel color, short thickness);
 
 static pixel *pixels;
 static pixel *capturePixels;

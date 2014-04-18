@@ -76,32 +76,85 @@ void keyPressed(int vk){
 	}
 }
 
+void drawRect(int x1, int y1, int x2, int y2, pixel color, short thickness){
+	for (char j = -thickness; j <= thickness; j++){
+		for (int i = x1 - thickness; i < x2 + thickness + 1; i++){
+			setPixel(i, y1 + j, color);
+			setPixel(i, y2 + j, color);
+		}
+		for (int i = y1 + thickness + 1; i < y2 - thickness; i++){
+			setPixel(x1 + j, i, color);
+			setPixel(x2 + j, i, color);
+		}
+	}
+}
+
+void fillRect(int x1, int y1, int x2, int y2, pixel color){
+	for (int x = x1; x < x2; x++){
+		for (int y = y1; y < y2; y++){
+			setPixel(x, y, color);
+		}
+	}
+}
+
 void paintToBuffer(){
 	memcpy(pixels, capturePixels, bufferWidth * bufferHeight * 4);
 	for (int i = 0; i < bufferWidth * bufferHeight; i++){
-		pixels[i].r >>= 1;
-		pixels[i].g >>= 1;
-		pixels[i].b >>= 1;
+		pixels[i].r -= pixels[i].r >> 2;
+		pixels[i].g -= pixels[i].g >> 2;
+		pixels[i].b -= pixels[i].b >> 2;
 	}
 	if (selectRect.valid){
 		for (int i = selectRect.y; i < selectRect.y + selectRect.height; i++){
 			memcpy(&pixels[i * bufferWidth + selectRect.x], &capturePixels[i * bufferWidth + selectRect.x], selectRect.width * 4);
 		}
-		for (char j = -LINE_WIDTH; j <= LINE_WIDTH; j++){
-			for (int i = selectRect.x - LINE_WIDTH; i < selectRect.x + selectRect.width + LINE_WIDTH + 1; i++){
-				setPixel(i, selectRect.y + j, SELECTION_COLOR, SELECTION_ALPHA);
-				setPixel(i, selectRect.y + selectRect.height + j, SELECTION_COLOR, SELECTION_ALPHA);
-			}
-			for (int i = selectRect.y + LINE_WIDTH + 1; i < selectRect.y + selectRect.height - LINE_WIDTH; i++){
-				setPixel(selectRect.x + j, i, SELECTION_COLOR, SELECTION_ALPHA);
-				setPixel(selectRect.x + selectRect.width + j, i, SELECTION_COLOR, SELECTION_ALPHA);
-			}
-		}
+		drawRect(selectRect.x, selectRect.y, selectRect.x + selectRect.width, selectRect.y + selectRect.height, SELECTION_COLOR, LINE_WIDTH);
+		drawText(selectRect.x, selectRect.y);
 	}
+	else{
+		RECT rect;
+		POINT p;
+		GetCursorPos(&p);
+		transparent = true;
+		GetWindowRect(WindowFromPoint(p), &rect);
+		if (rect.left < 0)
+			rect.left = 0;
+		if (rect.right > bufferWidth)
+			rect.right = bufferWidth;
+		if (rect.top < 0)
+			rect.top = 0;
+		if (rect.bottom > bufferHeight)
+			rect.bottom = bufferHeight;
+		for (int i = rect.top; i < rect.bottom; i++){
+			memcpy(&pixels[i * bufferWidth + rect.left], &capturePixels[i * bufferWidth + rect.left], (rect.right - rect.left) * 4);
+		}
+		drawRect(rect.left, rect.top, rect.right, rect.bottom, pixel(0xC00080FF), 2);
+	}
+	drawZoom();
 }
 
-void setPixel(int x, int y, pixel color, unsigned char alpha){
+void drawZoom(){
+	int realx = mouseX > bufferWidth - 129 ? bufferWidth - 129 : mouseX;
+	int realy = mouseY > bufferHeight - 190 ? bufferHeight - 190 : mouseY;
+
+	fillRect(realx + 4, realy + 5, 130 + realx + 4, 190 + realy + 5, pixel(0xC0808080));
+	fillRect(realx - 1, realy - 1, 130 + realx - 1, 190 + realy - 1, pixel(0xC0000000));
+}
+void drawText(WORD x, WORD y){
+	int height = 5;
+	int width = 100;
+	if (y - height - 2 < 0){
+		y = height + 2;
+	}
+	if (x + width + 6 > bufferWidth){
+		x = bufferWidth - width - 6;
+	}
+	fillRect(x, y - height - 2, width + 6 + x, height + 3 + y - height - 2, pixel(0xC0000000));
+}
+
+void setPixel(int x, int y, pixel color){
 	if (x >= 0 && x < bufferWidth && y >= 0 && y < bufferHeight) {
+		unsigned char alpha = color.a;
 		if (alpha < 255){
 			pixel *original = &pixels[x + y * bufferWidth];
 			original->r = (original->r * (255 - alpha) + color.r * alpha) >> 8;
@@ -192,6 +245,23 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 		mouseX = LOWORD(lParam);
 		mouseY = HIWORD(lParam);
 		selectionType = NOTHING;
+		if (!selectRect.valid){
+			RECT rect;
+			POINT p;
+			GetCursorPos(&p);
+			transparent = true;
+			GetWindowRect(WindowFromPoint(p), &rect);
+			if (rect.left < 0)
+				rect.left = 0;
+			if (rect.right > bufferWidth)
+				rect.right = bufferWidth;
+			if (rect.top < 0)
+				rect.top = 0;
+			if (rect.bottom > bufferHeight)
+				rect.bottom = bufferHeight;
+			selectRect = Selection(rect.left, rect.top, rect.right, rect.bottom);
+			InvalidateRect(hwnd, 0, false);
+		}
 		break;
 	case WM_MOUSEMOVE:
 		mouseX = LOWORD(lParam);
