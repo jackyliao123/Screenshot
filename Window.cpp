@@ -1,7 +1,7 @@
 #include "Window.h"
 
 bool registerHotkey(){
-	return RegisterHotKey(hwnd, 0, HOTKEY_MOD, HOTKEY_VK);
+	return RegisterHotKey(hwnd, 0, HOTKEY_MOD, HOTKEY_VK) != 0;
 }
 
 HBITMAP takeScreenshot(){
@@ -36,7 +36,7 @@ bool registerWindowClass(){
 	wc.lpszClassName = CLASS_NAME;
 	wc.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
 
-	return RegisterClassEx(&wc);
+	return RegisterClassEx(&wc) != 0;
 }
 
 bool createWindow(){
@@ -78,37 +78,38 @@ void keyPressed(int vk){
 
 void paintToBuffer(){
 	memcpy(pixels, capturePixels, bufferWidth * bufferHeight * 4);
-	for (unsigned int i = 0; i < bufferWidth * bufferHeight; i++){
+	for (int i = 0; i < bufferWidth * bufferHeight; i++){
 		pixels[i].r >>= 1;
 		pixels[i].g >>= 1;
 		pixels[i].b >>= 1;
 	}
 	if (selectRect.valid){
-		for (unsigned int i = selectRect.y; i < selectRect.y + selectRect.height; i++){
+		for (int i = selectRect.y; i < selectRect.y + selectRect.height; i++){
 			memcpy(&pixels[i * bufferWidth + selectRect.x], &capturePixels[i * bufferWidth + selectRect.x], selectRect.width * 4);
 		}
-		for (int i = selectRect.x - 1; i < selectRect.x + selectRect.width + 1; i++){
-			setPixel(i, selectRect.y - 1, SELECTION_COLOR);
-			setPixel(i, selectRect.y, SELECTION_COLOR);
-			setPixel(i, selectRect.y + 1, SELECTION_COLOR);
-			setPixel(i, selectRect.y + selectRect.height - 1, SELECTION_COLOR);
-			setPixel(i, selectRect.y + selectRect.height, SELECTION_COLOR);
-			setPixel(i, selectRect.y + selectRect.height + 1, SELECTION_COLOR);
-		}
-		for (int i = selectRect.y - 1; i < selectRect.y + selectRect.height + 1; i++){
-			setPixel(selectRect.x - 1, i, SELECTION_COLOR);
-			setPixel(selectRect.x, i, SELECTION_COLOR);
-			setPixel(selectRect.x + 1, i, SELECTION_COLOR);
-			setPixel(selectRect.x + selectRect.width - 1, i, SELECTION_COLOR);
-			setPixel(selectRect.x + selectRect.width, i, SELECTION_COLOR);
-			setPixel(selectRect.x + selectRect.width + 1, i, SELECTION_COLOR);
+		for (char j = -LINE_WIDTH; j <= LINE_WIDTH; j++){
+			for (int i = selectRect.x - LINE_WIDTH; i < selectRect.x + selectRect.width + LINE_WIDTH + 1; i++){
+				setPixel(i, selectRect.y + j, SELECTION_COLOR, SELECTION_ALPHA);
+				setPixel(i, selectRect.y + selectRect.height + j, SELECTION_COLOR, SELECTION_ALPHA);
+			}
+			for (int i = selectRect.y + LINE_WIDTH + 1; i < selectRect.y + selectRect.height - LINE_WIDTH; i++){
+				setPixel(selectRect.x + j, i, SELECTION_COLOR, SELECTION_ALPHA);
+				setPixel(selectRect.x + selectRect.width + j, i, SELECTION_COLOR, SELECTION_ALPHA);
+			}
 		}
 	}
 }
 
-void setPixel(int x, int y, int color){
+void setPixel(int x, int y, pixel color, unsigned char alpha){
 	if (x >= 0 && x < bufferWidth && y >= 0 && y < bufferHeight) {
-		pixels[x + y * bufferWidth].val = color;
+		if (alpha < 255){
+			pixel *original = &pixels[x + y * bufferWidth];
+			original->r = (original->r * (255 - alpha) + color.r * alpha) >> 8;
+			original->g = (original->g * (255 - alpha) + color.g * alpha) >> 8;
+			original->b = (original->b * (255 - alpha) + color.b * alpha) >> 8;
+		}
+		else
+			pixels[x + y * bufferWidth] = color;
 	}
 }
 

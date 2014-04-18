@@ -17,7 +17,6 @@ bool registerHotkey();
 void createBuffer();
 void paintWindow();
 void paintToBuffer();
-void setPixel(int x, int y, int color);
 
 static HINSTANCE hInstance;
 static HINSTANCE hPrevInstance;
@@ -41,7 +40,12 @@ struct pixel {
 	pixel() {
 		val = 0;
 	}
+	pixel(unsigned int v) {
+		val = v;
+	}
 };
+
+void setPixel(int x, int y, pixel color, unsigned char alpha);
 
 static pixel *pixels;
 static pixel *capturePixels;
@@ -54,7 +58,7 @@ static WORD mousePressY;
 static WORD mouseX;
 static WORD mouseY;
 
-static unsigned int bufferWidth;
-static unsigned int bufferHeight;
+static int bufferWidth;
+static int bufferHeight;
 
 #endif
