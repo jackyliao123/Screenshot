@@ -61,34 +61,31 @@ void keyPressed(int vk){
 	switch (vk){
 	case VK_ESCAPE:
 		if (hbitmap != NULL){
-			if (selectRect.valid)
+			if (selectRect.valid){
 				selectRect.valid = false;
-			DeleteObject(hbitmap);
-			hbitmap = NULL;
-			delete[] capturePixels;
-			DeleteObject(buffer);
-			ShowWindow(hwnd, SW_HIDE);
+			}
+			else{
+				DeleteObject(hbitmap);
+				hbitmap = NULL;
+				delete[] capturePixels;
+				DeleteObject(buffer);
+				ShowWindow(hwnd, SW_HIDE);
+			}
 		}
 		break;
 	}
 }
 
 void paintToBuffer(){
+	memcpy(pixels, capturePixels, bufferWidth * bufferHeight * 4);
 	for (unsigned int i = 0; i < bufferWidth * bufferHeight; i++){
-		pixels[i] = capturePixels[i];
-	}
-	for (unsigned int i = 0; i < bufferWidth; i++){
-		for (unsigned int j = 0; j < bufferHeight; j++){
-			pixels[j * bufferWidth + i].r /= 2;
-			pixels[j * bufferWidth + i].g /= 2;
-			pixels[j * bufferWidth + i].b /= 2;
-		}
+		pixels[i].r >>= 1;
+		pixels[i].g >>= 1;
+		pixels[i].b >>= 1;
 	}
 	if (selectRect.valid){
-		for (unsigned int i = selectRect.x; i < selectRect.x + selectRect.width; i++){
-			for (unsigned int j = selectRect.y; j < selectRect.y + selectRect.height; j++){
-				pixels[j * bufferWidth + i] = capturePixels[j * bufferWidth + i];
-			}
+		for (unsigned int i = selectRect.y; i < selectRect.y + selectRect.height; i++){
+			memcpy(&pixels[i * bufferWidth + selectRect.x], &capturePixels[i * bufferWidth + selectRect.x], selectRect.width * 4);
 		}
 	}
 }
@@ -101,15 +98,7 @@ void createBuffer(){
 	bmi.bmiHeader.biPlanes = 1;
 	bmi.bmiHeader.biBitCount = 32;
 	bmi.bmiHeader.biCompression = BI_RGB;
-	bmi.bmiHeader.biSizeImage = 0;
-	bmi.bmiHeader.biXPelsPerMeter = 0;
-	bmi.bmiHeader.biYPelsPerMeter = 0;
-	bmi.bmiHeader.biClrUsed = 0;
-	bmi.bmiHeader.biClrImportant = 0;
-	bmi.bmiColors[0].rgbBlue = 0;
-	bmi.bmiColors[0].rgbGreen = 0;
-	bmi.bmiColors[0].rgbRed = 0;
-	bmi.bmiColors[0].rgbReserved = 0;
+
 	HDC hdc = GetDC(hwnd);
 	bufferWidth = rect.right - rect.left;
 	bufferHeight = rect.bottom - rect.top;
@@ -173,7 +162,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 		mouseY = HIWORD(lParam);
 		mousePressX = mouseX;
 		mousePressY = mouseY;
-		selectionType = SELECTION;
+		if (!selectRect.valid)
+			selectionType = SELECTION;
 		break;
 	case WM_LBUTTONUP:
 		mouseX = LOWORD(lParam);
@@ -196,6 +186,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 		break;
 	case WM_KEYDOWN:
 		keyPressed(wParam);
+		InvalidateRect(hwnd, 0, true);
 		break;
 	default:
 		return DefWindowProc(hwnd, msg, wParam, lParam);
