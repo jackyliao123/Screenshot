@@ -87,6 +87,28 @@ void paintToBuffer(){
 		for (unsigned int i = selectRect.y; i < selectRect.y + selectRect.height; i++){
 			memcpy(&pixels[i * bufferWidth + selectRect.x], &capturePixels[i * bufferWidth + selectRect.x], selectRect.width * 4);
 		}
+		for (int i = selectRect.x - 1; i < selectRect.x + selectRect.width + 1; i++){
+			setPixel(i, selectRect.y - 1, SELECTION_COLOR);
+			setPixel(i, selectRect.y, SELECTION_COLOR);
+			setPixel(i, selectRect.y + 1, SELECTION_COLOR);
+			setPixel(i, selectRect.y + selectRect.height - 1, SELECTION_COLOR);
+			setPixel(i, selectRect.y + selectRect.height, SELECTION_COLOR);
+			setPixel(i, selectRect.y + selectRect.height + 1, SELECTION_COLOR);
+		}
+		for (int i = selectRect.y - 1; i < selectRect.y + selectRect.height + 1; i++){
+			setPixel(selectRect.x - 1, i, SELECTION_COLOR);
+			setPixel(selectRect.x, i, SELECTION_COLOR);
+			setPixel(selectRect.x + 1, i, SELECTION_COLOR);
+			setPixel(selectRect.x + selectRect.width - 1, i, SELECTION_COLOR);
+			setPixel(selectRect.x + selectRect.width, i, SELECTION_COLOR);
+			setPixel(selectRect.x + selectRect.width + 1, i, SELECTION_COLOR);
+		}
+	}
+}
+
+void setPixel(int x, int y, int color){
+	if (x >= 0 && x < bufferWidth && y >= 0 && y < bufferHeight) {
+		pixels[x + y * bufferWidth].val = color;
 	}
 }
 

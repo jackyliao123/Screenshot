@@ -17,6 +17,7 @@ bool registerHotkey();
 void createBuffer();
 void paintWindow();
 void paintToBuffer();
+void setPixel(int x, int y, int color);
 
 static HINSTANCE hInstance;
 static HINSTANCE hPrevInstance;
