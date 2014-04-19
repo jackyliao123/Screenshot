@@ -33,6 +33,7 @@ static RECT rect;
 static Selection selectRect;
 
 static bool transparent;
+static double zoom = 2;
 
 struct pixel {
 	union {

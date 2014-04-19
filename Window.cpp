@@ -142,13 +142,14 @@ void drawZoom(){
 
 	for (int i = 0; i < 128; i++){
 		for (int j = 0; j < 128; j++){
-			int zoom = 32;
-			int calcZoom = 64 / zoom;
-			int shift = zoom >> 1;
+			double calcZoom = 64 / zoom;
+			double shift = zoom / 2.0;
 
 			setPixel(i + realx, j + realy, getPixel((i + shift) / zoom + mouseX - calcZoom, (j + shift) / zoom + mouseY - calcZoom));
 		}
 	}
+	fillRect(realx + 63, realy, realx + 65, realy + 128, pixel(0x80000000));
+	fillRect(realx, realy + 63, realx + 128, realy + 65, pixel(0x80000000));
 
 	HDC dcWnd = GetDC(hwnd);
 	HDC hdc = CreateCompatibleDC(dcWnd);
@@ -157,6 +158,8 @@ void drawZoom(){
 	HBITMAP hBmpOld = (HBITMAP)SelectObject(hdc, buffer);
 
 	pixel p = getPixel(mouseX, mouseY);
+
+	fillRect(realx + 81, realy + 130, realx + 127, realy + 147, p);
 
 	ostringstream s;
 	s << "0x" << setw(6) << setfill('0') << uppercase << hex << (p.val & 0xFFFFFF) << dec << "\nRGB: " << (unsigned short)p.r << " " << (unsigned short)p.g << " " << (unsigned short)p.b << "\nx: " << mouseX << ", y: " << mouseY;
@@ -342,6 +345,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 			selectRect = Selection(mousePressX, mousePressY, mouseX, mouseY);
 			selectRect.expand(1, 1);
 		}
+		InvalidateRect(hwnd, 0, false);
+		break;
+	case WM_MOUSEWHEEL:
+		if (GET_WHEEL_DELTA_WPARAM(wParam) > 0){
+			zoom += 1;
+		}
+		if (GET_WHEEL_DELTA_WPARAM(wParam) < 0){
+			zoom -= 1;
+		}
+		if (zoom < 1)
+			zoom = 1;
+		if (zoom > 32)
+			zoom = 32;
 		InvalidateRect(hwnd, 0, false);
 		break;
 	case WM_CLOSE:
