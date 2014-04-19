@@ -43,7 +43,7 @@ bool createWindow(){
 	HWND desktop = GetDesktopWindow();
 	GetWindowRect(desktop, &rect);
 	hwnd = CreateWindow(CLASS_NAME, "", WS_POPUP, 0, 0, rect.right - rect.left, rect.bottom - rect.top, NULL, NULL, hInstance, NULL);
-	SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+	//SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 	ShowWindow(hwnd, SW_HIDE);
 	UpdateWindow(hwnd);
 	return hwnd != NULL;
@@ -67,11 +67,70 @@ void keyPressed(int vk){
 			else{
 				DeleteObject(hbitmap);
 				hbitmap = NULL;
+				selectRect.valid = false;
 				delete[] capturePixels;
 				DeleteObject(buffer);
 				ShowWindow(hwnd, SW_HIDE);
 			}
 		}
+		break;
+	case VK_RETURN:
+		OpenClipboard(hwnd);
+		EmptyClipboard();
+
+		BITMAPINFOHEADER bmih;
+		bmih.biSize = sizeof(BITMAPINFOHEADER);
+		bmih.biWidth = selectRect.width;
+		bmih.biHeight = -selectRect.height;
+		bmih.biPlanes = 1;
+		bmih.biBitCount = 32;
+		bmih.biCompression = BI_RGB;
+		bmih.biSizeImage = 0;
+		bmih.biXPelsPerMeter = 10;
+		bmih.biYPelsPerMeter = 10;
+		bmih.biClrUsed = 0;
+		bmih.biClrImportant = 0;
+
+		BITMAPINFO dbmi;
+		ZeroMemory(&dbmi, sizeof(dbmi));
+		dbmi.bmiHeader = bmih;
+		dbmi.bmiColors->rgbBlue = 0;
+		dbmi.bmiColors->rgbGreen = 0;
+		dbmi.bmiColors->rgbRed = 0;
+		dbmi.bmiColors->rgbReserved = 0;
+		void* bits = (void*)&(pixels[0]); 
+
+		HDC hdc = GetDC(NULL);
+		HDC hdcMem = CreateCompatibleDC(hdc);
+		HBITMAP capture = CreateCompatibleBitmap(hdc, selectRect.width, selectRect.height);
+		bufferWidth = rect.right - rect.left;
+		bufferHeight = rect.bottom - rect.top;
+		pixel *ps = new pixel[selectRect.width * selectRect.height];
+
+		HGDIOBJ old = SelectObject(hdcMem, hbitmap);
+
+		for (int i = 0; i < selectRect.height; i++){
+			memcpy(&ps[i * selectRect.width], &capturePixels[(i + selectRect.y) * bufferWidth + selectRect.x], selectRect.width * 4);
+		}
+
+		SetDIBits(hdc, capture, 0, selectRect.height, ps, &dbmi, 0);
+
+		SetClipboardData(CF_BITMAP, capture);
+
+		SelectObject(hdc, old);
+
+		CloseClipboard();
+
+		ReleaseDC(NULL, hdc);
+		DeleteDC(hdcMem);
+		DeleteObject(hbitmap);
+		DeleteObject(capture);
+		hbitmap = NULL;
+		selectRect.valid = false;
+		delete[] ps;
+		delete[] capturePixels;
+		DeleteObject(buffer);
+		ShowWindow(hwnd, SW_HIDE);
 		break;
 	}
 }
@@ -145,7 +204,7 @@ void drawZoom(){
 			double calcZoom = 64 / zoom;
 			double shift = zoom / 2.0;
 
-			setPixel(i + realx, j + realy, getPixel((i + shift) / zoom + mouseX - calcZoom, (j + shift) / zoom + mouseY - calcZoom));
+			setPixel(i + realx, j + realy, getPixel((int)((i + shift) / zoom + mouseX - calcZoom), (int)((j + shift) / zoom + mouseY - calcZoom)));
 		}
 	}
 	fillRect(realx + 63, realy, realx + 65, realy + 128, pixel(0x80000000));
