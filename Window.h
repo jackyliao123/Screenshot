@@ -1,6 +1,8 @@
 #ifndef Window_h
 #define Window_h
 
+#include <sstream>
+#include <iomanip>
 #include <iostream>
 using namespace std;
 
@@ -48,6 +50,7 @@ struct pixel {
 };
 
 void setPixel(int x, int y, pixel color);
+pixel getPixel(int x, int y);
 void drawRect(int x1, int y1, int x2, int y2, pixel color, short thickness);
 
 static pixel *pixels;

@@ -1,14 +1,14 @@
 #include "Window.h"
 
-/*int WINAPI WinMain(HINSTANCE hi, HINSTANCE hpi, LPSTR lcl, int ncs){
+int WINAPI WinMain(HINSTANCE hi, HINSTANCE hpi, LPSTR lcl, int ncs){
 	hInstance = hi;
 	hPrevInstance = hpi;
 	lpCmdLine = lcl;
-	*/
-int main(){
+	
+/*int main(){
 	hInstance = 0;
 	hPrevInstance = 0;
-	lpCmdLine = 0;
+	lpCmdLine = 0;*/
 
 	if (!registerWindowClass()){
 		MessageBox(NULL, "Unable to register window class", "Error", MB_ICONERROR);

@@ -140,25 +140,54 @@ void drawZoom(){
 	fillRect(realx + 4, realy + 5, 130 + realx + 4, 190 + realy + 5, pixel(0xC0808080));
 	fillRect(realx - 1, realy - 1, 130 + realx - 1, 190 + realy - 1, pixel(0xC0000000));
 
-	for (int i = 0; i < 100; i++){
+	for (int i = 0; i < 128; i++){
+		for (int j = 0; j < 128; j++){
+			int zoom = 32;
+			int calcZoom = 64 / zoom;
+			int shift = zoom >> 1;
 
+			setPixel(i + realx, j + realy, getPixel((i + shift) / zoom + mouseX - calcZoom, (j + shift) / zoom + mouseY - calcZoom));
+		}
 	}
+
+	HDC dcWnd = GetDC(hwnd);
+	HDC hdc = CreateCompatibleDC(dcWnd);
+	HFONT font = CreateFont(17, 0, 0, 0, FW_LIGHT, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, 0, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Arial");
+	SelectObject(hdc, font);
+	HBITMAP hBmpOld = (HBITMAP)SelectObject(hdc, buffer);
+
+	pixel p = getPixel(mouseX, mouseY);
+
+	ostringstream s;
+	s << "0x" << setw(6) << setfill('0') << uppercase << hex << (p.val & 0xFFFFFF) << dec << "\nRGB: " << (unsigned short)p.r << " " << (unsigned short)p.g << " " << (unsigned short)p.b << "\nx: " << mouseX << ", y: " << mouseY;
+	string txt = s.str();
+
+	RECT rect;
+	rect.left = realx + 3;
+	rect.top = realy + 132;
+	rect.bottom = realy + 190;
+	rect.right = realx + 128;
+	SetBkMode(hdc, TRANSPARENT);
+
+	SetTextColor(hdc, RGB(255, 255, 255));
+	DrawText(hdc, txt.c_str(), txt.length(), &rect, DT_LEFT | DT_WORDBREAK);
+
+	SelectObject(hdc, hBmpOld);
+	ReleaseDC(hwnd, dcWnd);
+	DeleteDC(hdc);
+	DeleteObject(font);
+
 }
 void drawText(WORD x, WORD y){
-	char *wt = new char[35];
-	char *ht = new char[16];
-	_itoa_s(selectRect.width, wt, 16, 10);
-	_itoa_s(selectRect.height, ht, 16, 10);
-	wt[15] = 0;
-	ht[15] = 0;
-	strcat_s(wt, 35, " x ");
-	strcat_s(wt, 35, ht);
+	ostringstream s;
+	s << selectRect.width << " x " << selectRect.height;
+	string txt = s.str();
 	HDC dcWnd = GetDC(hwnd);
 	HDC hdc = CreateCompatibleDC(dcWnd);
 	HFONT font = CreateFont(15, 0, 0, 0, FW_LIGHT, 0, 0, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, 0, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Arial");
 	SelectObject(hdc, font);
 	SIZE size;
-	GetTextExtentPoint32(hdc, wt, strlen(wt), &size);
+	GetTextExtentPoint32(hdc, txt.c_str(), txt.length(), &size);
 	int width = size.cx;
 	int height = size.cy;
 	if (y - height - 2 < 0){
@@ -178,14 +207,21 @@ void drawText(WORD x, WORD y){
 	SetBkMode(hdc, TRANSPARENT);
 	
 	SetTextColor(hdc, RGB(255, 255, 255));
-	DrawText(hdc, wt, strlen(wt), &rect, DT_LEFT | DT_WORDBREAK);
+	DrawText(hdc, txt.c_str(), txt.length(), &rect, DT_LEFT | DT_WORDBREAK);
 
 	SelectObject(hdc, hBmpOld);
 	ReleaseDC(hwnd, dcWnd);
 	DeleteDC(hdc);
 	DeleteObject(font);
-	delete[] wt;
-	delete[] ht;
+}
+
+pixel getPixel(int x, int y){
+	if (x >= 0 && x < bufferWidth && y >= 0 && y < bufferHeight) {
+		pixel p = capturePixels[x + y * bufferWidth];
+		p.a = 255;
+		return p;
+	}
+	return pixel();
 }
 
 void setPixel(int x, int y, pixel color){
@@ -304,6 +340,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 		mouseY = HIWORD(lParam);
 		if (selectionType == SELECTION){
 			selectRect = Selection(mousePressX, mousePressY, mouseX, mouseY);
+			selectRect.expand(1, 1);
 		}
 		InvalidateRect(hwnd, 0, false);
 		break;
