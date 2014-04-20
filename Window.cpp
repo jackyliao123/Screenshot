@@ -57,24 +57,17 @@ void startMessageLoop(){
 	}
 }
 
-void keyPressed(int vk){
-	switch (vk){
-	case VK_ESCAPE:
-		if (hbitmap != NULL){
-			if (selectRect.valid){
-				selectRect.valid = false;
-			}
-			else{
-				DeleteObject(hbitmap);
-				hbitmap = NULL;
-				selectRect.valid = false;
-				delete[] capturePixels;
-				DeleteObject(buffer);
-				ShowWindow(hwnd, SW_HIDE);
-			}
-		}
-		break;
-	case VK_RETURN:
+void disposeWindow(){
+	DeleteObject(hbitmap);
+	hbitmap = NULL;
+	selectRect.valid = false;
+	delete[] capturePixels;
+	DeleteObject(buffer);
+	ShowWindow(hwnd, SW_HIDE);
+}
+
+void sendToClipboard(){
+	if (selectRect.valid){
 		OpenClipboard(hwnd);
 		EmptyClipboard();
 
@@ -98,7 +91,7 @@ void keyPressed(int vk){
 		dbmi.bmiColors->rgbGreen = 0;
 		dbmi.bmiColors->rgbRed = 0;
 		dbmi.bmiColors->rgbReserved = 0;
-		void* bits = (void*)&(pixels[0]); 
+		void* bits = (void*)&(pixels[0]);
 
 		HDC hdc = GetDC(NULL);
 		HDC hdcMem = CreateCompatibleDC(hdc);
@@ -123,14 +116,77 @@ void keyPressed(int vk){
 
 		ReleaseDC(NULL, hdc);
 		DeleteDC(hdcMem);
-		DeleteObject(hbitmap);
 		DeleteObject(capture);
-		hbitmap = NULL;
-		selectRect.valid = false;
 		delete[] ps;
-		delete[] capturePixels;
-		DeleteObject(buffer);
-		ShowWindow(hwnd, SW_HIDE);
+	}
+}
+
+void keyPressed(int vk){
+	switch (vk){
+	case VK_ESCAPE:
+		if (hbitmap != NULL){
+			if (selectRect.valid){
+				selectRect.valid = false;
+			}
+			else{
+				DeleteObject(hbitmap);
+				hbitmap = NULL;
+				selectRect.valid = false;
+				delete[] capturePixels;
+				DeleteObject(buffer);
+				ShowWindow(hwnd, SW_HIDE);
+			}
+		}
+		break;
+	case VK_RETURN:
+		sendToClipboard();
+		disposeWindow();
+		break;
+	case 'C':
+		if (ctrlPressed)
+			sendToClipboard();
+		break;
+	case 'X':
+		if (ctrlPressed){
+			sendToClipboard();
+			disposeWindow();
+		}
+		break;
+	case 'S':
+		if (ctrlPressed){
+			OPENFILENAMEW openFile = { 0 };
+			wchar_t Buffer[300];
+			memset(&Buffer, 0, 300);
+			openFile.lStructSize = sizeof(OPENFILENAMEA);
+			openFile.hwndOwner = hwnd;
+			openFile.lpstrFile = Buffer;
+			openFile.nMaxFile = 300;
+			openFile.Flags = OFN_EXPLORER;
+			unsigned int num = 0, size = 0;
+			GetImageEncodersSize(&num, &size);
+			ImageCodecInfo *pImageCodecInfo = (ImageCodecInfo *)(malloc(size));
+			GetImageEncoders(num, size, pImageCodecInfo);
+
+			wstring s;
+
+			for (unsigned int i = 0; i < num; ++i){
+				const wchar_t *format = pImageCodecInfo[i].FormatDescription;
+				const wchar_t *filename = pImageCodecInfo[i].FilenameExtension;
+				wstring fileLower(filename);
+				transform(fileLower.begin(), fileLower.end(), fileLower.begin(), tolower);
+				s = s + wstring(format, wcslen(format)) + wstring(L" (") + fileLower + wstring(L")", 2) + wstring(filename, wcslen(filename) + 1);
+			}
+			s = s + wstring(L"\0", 1);
+
+			openFile.lpstrFilter = s.c_str();
+
+			openFile.lpstrCustomFilter = NULL;
+			openFile.nFilterIndex = 0;
+			openFile.lpstrFileTitle = NULL;
+			openFile.lpstrInitialDir = L"C:\\";
+			openFile.lpstrTitle = L"Save Capture As";
+			GetSaveFileNameW(&openFile);
+		}
 		break;
 	}
 }
@@ -167,8 +223,8 @@ void paintToBuffer(){
 		for (int i = selectRect.y; i < selectRect.y + selectRect.height; i++){
 			memcpy(&pixels[i * bufferWidth + selectRect.x], &capturePixels[i * bufferWidth + selectRect.x], selectRect.width * 4);
 		}
-		drawRect(selectRect.x, selectRect.y, selectRect.x + selectRect.width, selectRect.y + selectRect.height, SELECTION_COLOR, LINE_WIDTH);
-		drawText(selectRect.x, selectRect.y);
+		drawRect(selectRect.x, selectRect.y, selectRect.x + selectRect.width, selectRect.y + selectRect.height, SELECTION_COLOR, SELECTION_WIDTH);
+		drawText(selectRect);
 	}
 	else{
 		RECT rect;
@@ -187,7 +243,8 @@ void paintToBuffer(){
 		for (int i = rect.top; i < rect.bottom; i++){
 			memcpy(&pixels[i * bufferWidth + rect.left], &capturePixels[i * bufferWidth + rect.left], (rect.right - rect.left) * 4);
 		}
-		drawRect(rect.left, rect.top, rect.right, rect.bottom, pixel(0xC00080FF), 2);
+		drawRect(rect.left, rect.top, rect.right, rect.bottom, WINDOW_SELECT_COLOR, WINDOW_SELECT_WIDTH);
+		drawText(Selection(rect.left, rect.top, rect.right, rect.bottom));
 	}
 	drawZoom();
 }
@@ -240,9 +297,9 @@ void drawZoom(){
 	DeleteObject(font);
 
 }
-void drawText(WORD x, WORD y){
+void drawText(Selection sel){
 	ostringstream s;
-	s << selectRect.width << " x " << selectRect.height;
+	s << sel.width << " x " << sel.height;
 	string txt = s.str();
 	HDC dcWnd = GetDC(hwnd);
 	HDC hdc = CreateCompatibleDC(dcWnd);
@@ -252,6 +309,8 @@ void drawText(WORD x, WORD y){
 	GetTextExtentPoint32(hdc, txt.c_str(), txt.length(), &size);
 	int width = size.cx;
 	int height = size.cy;
+	int x = sel.x;
+	int y = sel.y;
 	if (y - height - 2 < 0){
 		y = height + 2;
 	}
@@ -426,8 +485,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam){
 		PostQuitMessage(0);
 		break;
 	case WM_KEYDOWN:
+		if (wParam == VK_CONTROL){
+			ctrlPressed = true;
+		}
 		keyPressed(wParam);
 		InvalidateRect(hwnd, 0, true);
+		break;
+	case WM_KEYUP:
+		if (wParam == VK_CONTROL){
+			ctrlPressed = false;
+		}
 		break;
 	default:
 		return DefWindowProc(hwnd, msg, wParam, lParam);

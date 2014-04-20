@@ -9,6 +9,16 @@ using namespace std;
 #include "Constants.h"
 #include "Selection.h"
 
+#include <GdiPlus.h>
+using namespace Gdiplus;
+
+#include <algorithm>
+
+#pragma comment (lib, "Gdiplus.lib")
+
+static ULONG_PTR gdiplusToken;
+static GdiplusStartupInput gdiplusStartupInput;
+
 HBITMAP takeScreenshot();
 bool registerWindowClass();
 bool createWindow();
@@ -20,7 +30,9 @@ void createBuffer();
 void paintWindow();
 void paintToBuffer();
 void drawZoom();
-void drawText(WORD x, WORD y);
+void drawText(Selection sel);
+void sendToClipboard();
+void disposeWindow();
 
 static HINSTANCE hInstance;
 static HINSTANCE hPrevInstance;
@@ -34,6 +46,7 @@ static Selection selectRect;
 
 static bool transparent;
 static double zoom = 2;
+static bool ctrlPressed = false;
 
 struct pixel {
 	union {
