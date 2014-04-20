@@ -78,20 +78,9 @@ void sendToClipboard(){
 		bmih.biPlanes = 1;
 		bmih.biBitCount = 32;
 		bmih.biCompression = BI_RGB;
-		bmih.biSizeImage = 0;
-		bmih.biXPelsPerMeter = 10;
-		bmih.biYPelsPerMeter = 10;
-		bmih.biClrUsed = 0;
-		bmih.biClrImportant = 0;
 
 		BITMAPINFO dbmi;
-		ZeroMemory(&dbmi, sizeof(dbmi));
 		dbmi.bmiHeader = bmih;
-		dbmi.bmiColors->rgbBlue = 0;
-		dbmi.bmiColors->rgbGreen = 0;
-		dbmi.bmiColors->rgbRed = 0;
-		dbmi.bmiColors->rgbReserved = 0;
-		void* bits = (void*)&(pixels[0]);
 
 		HDC hdc = GetDC(NULL);
 		HDC hdcMem = CreateCompatibleDC(hdc);
@@ -155,12 +144,12 @@ void keyPressed(int vk){
 	case 'S':
 		if (ctrlPressed){
 			OPENFILENAMEW openFile = { 0 };
-			wchar_t Buffer[300];
-			memset(&Buffer, 0, 300);
+			wchar_t filePath[261];
+			memset(&filePath, 0, 261);
 			openFile.lStructSize = sizeof(OPENFILENAMEA);
 			openFile.hwndOwner = hwnd;
-			openFile.lpstrFile = Buffer;
-			openFile.nMaxFile = 300;
+			openFile.lpstrFile = filePath;
+			openFile.nMaxFile = 261;
 			openFile.Flags = OFN_EXPLORER;
 			unsigned int num = 0, size = 0;
 			GetImageEncodersSize(&num, &size);
@@ -183,9 +172,80 @@ void keyPressed(int vk){
 			openFile.lpstrCustomFilter = NULL;
 			openFile.nFilterIndex = 0;
 			openFile.lpstrFileTitle = NULL;
-			openFile.lpstrInitialDir = L"C:\\";
+			openFile.lpstrInitialDir = NULL;
 			openFile.lpstrTitle = L"Save Capture As";
-			GetSaveFileNameW(&openFile);
+			if (!GetSaveFileNameW(&openFile)){
+				return;
+			}
+
+			BITMAPINFOHEADER bmih;
+			bmih.biSize = sizeof(BITMAPINFOHEADER);
+			bmih.biWidth = selectRect.width;
+			bmih.biHeight = -selectRect.height;
+			bmih.biPlanes = 1;
+			bmih.biBitCount = 32;
+			bmih.biCompression = BI_RGB;
+
+			BITMAPINFO dbmi;
+			dbmi.bmiHeader = bmih;
+
+			HDC hdc = GetDC(NULL);
+			HDC hdcMem = CreateCompatibleDC(hdc);
+			HBITMAP capture = CreateCompatibleBitmap(hdc, selectRect.width, selectRect.height);
+			bufferWidth = rect.right - rect.left;
+			bufferHeight = rect.bottom - rect.top;
+			pixel *ps = new pixel[selectRect.width * selectRect.height];
+
+			HGDIOBJ old = SelectObject(hdcMem, hbitmap);
+
+			for (int i = 0; i < selectRect.height; i++){
+				memcpy(&ps[i * selectRect.width], &capturePixels[(i + selectRect.y) * bufferWidth + selectRect.x], selectRect.width * 4);
+			}
+
+			SetDIBits(hdc, capture, 0, selectRect.height, ps, &dbmi, 0);
+
+			ImageCodecInfo info = pImageCodecInfo[openFile.nFilterIndex - 1];
+
+			wchar_t *fne = new wchar_t[wcslen(info.FilenameExtension) + 1];
+			wcscpy_s(fne, wcslen(info.FilenameExtension) + 1, info.FilenameExtension);
+
+			wchar_t *context = NULL;
+			wchar_t *c = wcstok_s(fne, L";", &context);
+			wchar_t *first = c;
+
+			bool found = false;
+
+			while (c != NULL){
+				wstring str(filePath);
+				transform(str.begin(), str.end(), str.begin(), toupper);
+				wstring suffix(c);
+				suffix = suffix.substr(1);
+				if (str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0){
+					found = true;
+				}
+				c = wcstok_s(NULL, L";", &context);
+			}
+
+			wstring path(filePath);
+
+			if (!found){
+				wstring extension = wstring(first).substr(1);
+				transform(extension.begin(), extension.end(), extension.begin(), tolower);
+				path = path + extension;
+			}
+
+			Bitmap bitmap(capture, NULL);
+			bitmap.Save(path.c_str(), &(info.Clsid));
+
+			delete[] fne;
+
+			SelectObject(hdc, old);
+
+			ReleaseDC(NULL, hdc);
+			DeleteDC(hdcMem);
+			DeleteObject(capture);
+			delete[] ps;
+			delete[] pImageCodecInfo;
 		}
 		break;
 	}
