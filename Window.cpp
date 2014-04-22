@@ -166,14 +166,7 @@ void keyPressed(int vk){
 				transform(fileLower.begin(), fileLower.end(), fileLower.begin(), tolower);
 				s = s + wstring(format, wcslen(format)) + wstring(L" (") + fileLower + wstring(L")", 2) + wstring(filename, wcslen(filename) + 1);
 
-				size_t origsize = strlen("PNG") + 1;
-				const size_t newsize = 100;
-				size_t convertedChars = 0;
-				wchar_t wcstring[newsize];
-				mbstowcs_s(&convertedChars, wcstring, origsize, "PNG", _TRUNCATE);
-				wcscat_s(wcstring, L" (wchar_t *)");
-
-				if (wcscmp(format, wcstring)) {
+				if (wcscmp(format, L"PNG") == 0) {
 					index = i + 1;
 				}
 			}

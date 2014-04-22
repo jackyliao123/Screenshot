@@ -6,9 +6,6 @@
 	lpCmdLine = lcl;*/
 
 int main(){
-	HWND hWnd = GetConsoleWindow();
-	ShowWindow(hWnd, SW_HIDE);
-
 	hInstance = 0;
 	hPrevInstance = 0;
 	lpCmdLine = 0;
