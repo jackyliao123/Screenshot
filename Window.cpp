@@ -169,7 +169,7 @@ void keyPressed(int vk){
 				if (*format == *"PNG") {
 					index = i + 1;
 				}
-				else {
+				else if (index != 0) {
 					index = 0;
 				}
 			}
