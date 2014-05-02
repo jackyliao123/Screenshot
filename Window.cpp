@@ -157,7 +157,7 @@ void keyPressed(int vk){
 			GetImageEncoders(num, size, pImageCodecInfo);
 
 			wstring s;
-			DWORD index;
+			DWORD index = 0;
 
 			for (unsigned int i = 0; i < num; ++i){
 				const wchar_t *format = pImageCodecInfo[i].FormatDescription;
@@ -166,11 +166,8 @@ void keyPressed(int vk){
 				transform(fileLower.begin(), fileLower.end(), fileLower.begin(), tolower);
 				s = s + wstring(format, wcslen(format)) + wstring(L" (") + fileLower + wstring(L")", 2) + wstring(filename, wcslen(filename) + 1);
 
-				if (*format == *"PNG") {
+				if (wcscmp(format, L"PNG") == 0) {
 					index = i + 1;
-				}
-				else if (index != 0) {
-					index = 0;
 				}
 			}
 			s = s + wstring(L"\0", 1);

@@ -16,7 +16,7 @@ int main(){
 	ImageCodecInfo *pImageCodecInfo = (ImageCodecInfo *)(malloc(size));
 	GetImageEncoders(num, size, pImageCodecInfo);
 	for (unsigned int j = 0; j < num; ++j){
-		wcout << pImageCodecInfo[j].MimeType << endl;
+	wcout << pImageCodecInfo[j].MimeType << endl;
 	}*/
 
 	if (!registerWindowClass()){
