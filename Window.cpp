@@ -446,7 +446,7 @@ void createBuffer(){
 
 void paintWindow(){
 	if (hbitmap != NULL){
-		PAINTSTRUCT 	ps;
+		PAINTSTRUCT 		ps;
 		HDC 			hdc;
 		BITMAP 			bitmap;
 		HDC 			hdcMem;
